@@ -28,6 +28,31 @@ export class FetchError extends Error {
   }
 }
 
+const reportServerSuccess = () => {
+  const ServerAvailabilityActions = ActionsProvider.getActions('ServerAvailability');
+  ServerAvailabilityActions.reportSuccess();
+};
+
+const onServerError = (error, forbiddenRedirectRoute = Routes.STARTPAGE) => {
+  const SessionStore = StoreProvider.getStore('Session');
+  if (SessionStore.isLoggedIn() && error.status === 401) {
+    const SessionActions = ActionsProvider.getActions('Session');
+    SessionActions.logout(SessionStore.getSessionId());
+  }
+
+  // Redirect to the start page if a user is logged in but not allowed to access a certain HTTP API.
+  if (SessionStore.isLoggedIn() && error.status === 403) {
+    history.replace(forbiddenRedirectRoute);
+  }
+
+  if (error.originalError && !error.originalError.status) {
+    const ServerAvailabilityActions = ActionsProvider.getActions('ServerAvailability');
+    ServerAvailabilityActions.reportError(error);
+  }
+
+  throw new FetchError(error.statusText, error);
+};
+
 export class Builder {
   constructor(method, url) {
     this.request = request(method, url.replace(/([^:])\/\//, '$1/'))
@@ -61,32 +86,26 @@ export class Builder {
       .accept('json')
       .then((resp) => {
         if (resp.ok) {
-          const ServerAvailabilityActions = ActionsProvider.getActions('ServerAvailability');
-          ServerAvailabilityActions.reportSuccess();
+          reportServerSuccess();
           return resp.body;
         }
-
         throw new FetchError(resp.statusText, resp);
-      }, (error) => {
-        const SessionStore = StoreProvider.getStore('Session');
-        if (SessionStore.isLoggedIn() && error.status === 401) {
-          const SessionActions = ActionsProvider.getActions('Session');
-          SessionActions.logout(SessionStore.getSessionId());
+      }, error => onServerError(error, Routes.NOTFOUND));
+    return this;
+  }
+
+  file(body, mimeType) {
+    this.request = this.request
+      .send(body)
+      .type('json')
+      .accept(mimeType)
+      .then((resp) => {
+        if (resp.ok) {
+          reportServerSuccess();
+          return resp.text;
         }
-
-        // Redirect to the start page if a user is logged in but not allowed to access a certain HTTP API.
-        if (SessionStore.isLoggedIn() && error.status === 403) {
-          history.replace(Routes.NOTFOUND);
-        }
-
-        if (error.originalError && !error.originalError.status) {
-          const ServerAvailabilityActions = ActionsProvider.getActions('ServerAvailability');
-          ServerAvailabilityActions.reportError(error);
-        }
-
-        throw new FetchError(error.statusText, error);
-      });
-
+        throw new FetchError(resp.statusText, resp);
+      }, error => onServerError(error, Routes.NOTFOUND));
     return this;
   }
 
@@ -97,31 +116,12 @@ export class Builder {
       .accept('json')
       .then((resp) => {
         if (resp.ok) {
-          const ServerAvailabilityActions = ActionsProvider.getActions('ServerAvailability');
-          ServerAvailabilityActions.reportSuccess();
+          reportServerSuccess();
           return resp.body;
         }
 
         throw new FetchError(resp.statusText, resp);
-      }, (error) => {
-        const SessionStore = StoreProvider.getStore('Session');
-        if (SessionStore.isLoggedIn() && error.status === 401) {
-          const SessionActions = ActionsProvider.getActions('Session');
-          SessionActions.logout(SessionStore.getSessionId());
-        }
-
-        // Redirect to the start page if a user is logged in but not allowed to access a certain HTTP API.
-        if (SessionStore.isLoggedIn() && error.status === 403) {
-          history.replace(Routes.STARTPAGE);
-        }
-
-        if (error.originalError && !error.originalError.status) {
-          const ServerAvailabilityActions = ActionsProvider.getActions('ServerAvailability');
-          ServerAvailabilityActions.reportError(error);
-        }
-
-        throw new FetchError(error.statusText, error);
-      });
+      }, error => onServerError(error, Routes.STARTPAGE));
 
     return this;
   }
@@ -175,6 +175,15 @@ export function fetchPeriodically(method, url, body) {
     .authenticated()
     .noSessionExtension()
     .json(body)
+    .build();
+
+  return queuePromiseIfNotLoggedin(promise)();
+}
+
+export function fetchFile(method, url, body, mimeType = 'text/csv') {
+  const promise = () => new Builder(method, url)
+    .authenticated()
+    .file(body, mimeType)
     .build();
 
   return queuePromiseIfNotLoggedin(promise)();
