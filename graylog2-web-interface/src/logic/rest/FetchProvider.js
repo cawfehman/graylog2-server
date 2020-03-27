@@ -90,7 +90,7 @@ export class Builder {
           return resp.body;
         }
         throw new FetchError(resp.statusText, resp);
-      }, error => onServerError(error, Routes.NOTFOUND));
+      }, (error) => onServerError(error, Routes.NOTFOUND));
     return this;
   }
 
@@ -105,7 +105,7 @@ export class Builder {
           return resp.text;
         }
         throw new FetchError(resp.statusText, resp);
-      }, error => onServerError(error, Routes.NOTFOUND));
+      }, (error) => onServerError(error, Routes.NOTFOUND));
     return this;
   }
 
@@ -121,7 +121,7 @@ export class Builder {
         }
 
         throw new FetchError(resp.statusText, resp);
-      }, error => onServerError(error, Routes.STARTPAGE));
+      }, (error) => onServerError(error, Routes.STARTPAGE));
 
     return this;
   }
