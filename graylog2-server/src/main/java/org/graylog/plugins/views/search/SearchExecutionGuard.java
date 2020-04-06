@@ -47,7 +47,7 @@ public class SearchExecutionGuard {
         checkMissingRequirements(search);
     }
 
-    private void checkUserIsPermittedToSeeStreams(Set<String> streamIds, Predicate<String> hasReadPermissionForStream) {
+    public void checkUserIsPermittedToSeeStreams(Set<String> streamIds, Predicate<String> hasReadPermissionForStream) {
         final Predicate<String> isForbidden = hasReadPermissionForStream.negate();
         final Set<String> forbiddenStreams = streamIds.stream().filter(isForbidden).collect(Collectors.toSet());
 
