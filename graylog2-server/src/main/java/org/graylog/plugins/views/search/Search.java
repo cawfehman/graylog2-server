@@ -96,7 +96,6 @@ public abstract class Search implements ContentPackable<SearchEntity> {
         return Optional.ofNullable(parameterIndex.get(parameterName));
     }
 
-    @SuppressWarnings("UnstableApiUsage")
     public Search applyExecutionState(ObjectMapper objectMapper, Map<String, Object> executionState) {
         final Builder builder = toBuilder();
 
@@ -131,8 +130,9 @@ public abstract class Search implements ContentPackable<SearchEntity> {
 
         final ImmutableSet<String> defaultStreams = defaultStreamsSupplier.get();
 
-        if (defaultStreams.isEmpty())
+        if (defaultStreams.isEmpty()) {
             throw new PermissionException("User doesn't have access to any streams");
+        }
 
         final Set<Query> withDefaultStreams = withoutStreams.stream()
                 .map(q -> q.addStreamsToFilter(defaultStreams))
@@ -163,6 +163,13 @@ public abstract class Search implements ContentPackable<SearchEntity> {
                 .reduce(Collections.emptySet(), Sets::union);
 
         return Sets.union(queryStreamIds, searchTypeStreamIds);
+    }
+
+    public Query queryForSearchType(String searchTypeId) {
+        return queries().stream()
+                .filter(q -> q.hasSearchType(searchTypeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Search " + id() + " doesn't have a query for search type " + searchTypeId));
     }
 
     @AutoValue.Builder
