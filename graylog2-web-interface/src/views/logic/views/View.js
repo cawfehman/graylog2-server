@@ -218,7 +218,7 @@ export default class View {
   }
 }
 
-type InternalBuilderState = Immutable.Map<string, any>
+type InternalBuilderState = Immutable.Map<string, any>;
 class Builder {
   value: InternalBuilderState;
 
